@@ -138,7 +138,7 @@ function EditProductDetail() {
     brand: '',
     stock: 0,
     visible: 0,
-    star: 4.5,
+    star: 5,
   }
 
   const validationSchema = Yup.object({
@@ -226,7 +226,7 @@ function EditProductDetail() {
           brand: data?.brand_id,
           stock: data?.stock,
           visible: data?.display,
-          star: data?.votes,
+          star: data?.votes ? data.votes : 5,
         })
 
         setEditorData(data?.product_desc?.description)
@@ -718,20 +718,22 @@ function EditProductDetail() {
         </h5>
       ) : (
         <>
-          <CRow className="mb-3">
-            <CCol>
-              <h3>CẬP NHẬT SẢN PHẨM</h3>
-            </CCol>
-            <CCol md={{ span: 4, offset: 4 }}>
-              <div className="d-flex justify-content-end">
-                <Link to={`/product`}>
-                  <CButton color="primary" type="submit" size="sm">
-                    Danh sách
-                  </CButton>
-                </Link>
-              </div>
-            </CCol>
-          </CRow>
+          {/* PAGE HEADER */}
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 pb-2 border-bottom">
+            <div>
+              <h3 className="fw-bold text-uppercase text-dark m-0">CHỈNH SỬA SẢN PHẨM</h3>
+              <p className="text-muted text-xs m-0 mt-1">
+                Cập nhật thông tin chi tiết sản phẩm, giá bán, tồn kho, hình ảnh và cấu hình SEO
+              </p>
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              <Link to="/product">
+                <CButton color="primary" size="sm" className="fw-semibold shadow-xs">
+                  Quản lý sản phẩm
+                </CButton>
+              </Link>
+            </div>
+          </div>
 
           <CRow>
             <Formik

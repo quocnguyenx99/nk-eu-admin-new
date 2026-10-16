@@ -42,27 +42,27 @@ export const AppSidebarNav = ({ items }) => {
             {badge.text}
           </CBadge>
         )}
-        {name == 'QUẢN LÝ ĐƠN HÀNG' && (
+        {name === 'QUẢN LÝ ĐƠN HÀNG' && (
           <CBadge color={'danger'} className="ms-auto" size="sm">
             {dataNotSeen?.countOrderSum}
           </CBadge>
         )}
-        {name == 'QUẢN LÝ TUYỂN DỤNG' && (
+        {name === 'QUẢN LÝ TUYỂN DỤNG' && (
           <CBadge color={'danger'} className="ms-auto" size="sm">
             {dataNotSeen?.countCandidates}
           </CBadge>
         )}
-        {name == 'QUẢN LÝ COMMENT' && (
+        {name === 'QUẢN LÝ COMMENT' && (
           <CBadge color={'danger'} className="ms-auto" size="sm">
             {dataNotSeen?.countComment}
           </CBadge>
         )}
-        {name == 'QUẢN LÝ LIÊN HỆ' && (
+        {name === 'QUẢN LÝ LIÊN HỆ' && (
           <CBadge color={'danger'} className="ms-auto" size="sm">
             {dataNotSeen?.countContactQoute}
           </CBadge>
         )}
-        {name == 'QUẢN LÝ NEWSLETTER' && (
+        {name === 'QUẢN LÝ NEWSLETTER' && (
           <CBadge color={'danger'} className="ms-auto" size="sm">
             {dataNotSeen?.countMailList}
           </CBadge>
@@ -72,12 +72,13 @@ export const AppSidebarNav = ({ items }) => {
   }
 
   const navItem = (item, index, indent = false) => {
-    const { component, name, badge, icon, ...rest } = item
+    const { component, name, badge, icon, end, ...rest } = item
     const Component = component
+    const isExactEnd = end !== undefined ? end : true
     return (
       <Component as="div" key={index}>
         {rest.to || rest.href ? (
-          <CNavLink {...(rest.to && { as: NavLink })} {...rest}>
+          <CNavLink {...(rest.to && { as: NavLink, end: isExactEnd })} {...rest}>
             {navLink(name, icon, badge, indent)}
           </CNavLink>
         ) : (
@@ -92,8 +93,8 @@ export const AppSidebarNav = ({ items }) => {
     const Component = component
     return (
       <Component compact as="div" key={index} toggler={navLink(name, icon)} {...rest}>
-        {item.items?.map((item, index) =>
-          item.items ? navGroup(item, index) : navItem(item, index, true),
+        {item.items?.map((item, idx) =>
+          item.items ? navGroup(item, idx) : navItem(item, idx, true),
         )}
       </Component>
     )

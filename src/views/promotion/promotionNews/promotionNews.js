@@ -1,9 +1,19 @@
-import { cilColorBorder, cilTrash } from '@coreui/icons'
+import { cilColorBorder, cilTrash, cilPlus } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
-import { CButton, CCol, CContainer, CFormCheck, CImage, CRow, CTable } from '@coreui/react'
+import {
+  CBadge,
+  CButton,
+  CCard,
+  CCardBody,
+  CCol,
+  CFormCheck,
+  CFormSelect,
+  CImage,
+  CRow,
+  CTable,
+} from '@coreui/react'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import Search from '../../../components/search/Search'
 import { axiosClient, imageBaseUrl } from '../../../axiosConfig'
 import moment from 'moment/moment'
 
@@ -28,6 +38,9 @@ function PromotionNews() {
   const [isPermissionCheck, setIsPermissionCheck] = useState(true)
 
   const [dataPromotionNews, setDataPromotionNews] = useState([])
+  const [dataSearch, setDataSearch] = useState('')
+  const [selectedDisplay, setSelectedDisplay] = useState('')
+  const [isCollapse, setIsCollapse] = useState(false)
 
   // show deleted Modal
   const [visible, setVisible] = useState(false)
@@ -45,32 +58,49 @@ function PromotionNews() {
     navigate(`/promotion/edit?id=${id}`)
   }
 
-  // search Data
-  const handleSearch = (keyword) => {
-    fetchPromotionNewsData(keyword)
-  }
-
-  const fetchPromotionNewsData = async (dataSearch = '') => {
+  const fetchPromotionNewsData = async (
+    keyword = dataSearch,
+    displayStatus = selectedDisplay,
+    page = pageNumber,
+  ) => {
     try {
-      const response = await axiosClient.get(
-        `admin/promotion?data=${dataSearch}&page=${pageNumber}`,
-      )
+      let url = `admin/promotion?data=${keyword}&page=${page}`
+      if (displayStatus !== '') {
+        url += `&display=${displayStatus}`
+      }
+      const response = await axiosClient.get(url)
 
       if (response.data.status === true) {
         setDataPromotionNews(response.data.list)
       }
 
-      if (response.data.status === false && response.data.mess == 'no permission') {
+      if (response.data.status === false && response.data.mess === 'no permission') {
         setIsPermissionCheck(false)
       }
     } catch (error) {
-      console.error('Fetch promotion news data is error', error)
+      console.error('Fetch promotion news data error', error)
     }
   }
 
   useEffect(() => {
-    fetchPromotionNewsData()
-  }, [pageNumber])
+    fetchPromotionNewsData(dataSearch, selectedDisplay, pageNumber)
+  }, [pageNumber, selectedDisplay])
+
+  const handleSearch = () => {
+    setPageNumber(1)
+    fetchPromotionNewsData(dataSearch, selectedDisplay, 1)
+  }
+
+  const handleResetFilter = () => {
+    setDataSearch('')
+    setSelectedDisplay('')
+    setPageNumber(1)
+    fetchPromotionNewsData('', '', 1)
+  }
+
+  const handleToggleCollapse = () => {
+    setIsCollapse(!isCollapse)
+  }
 
   // pagination data
   const handlePageChange = ({ selected }) => {
@@ -87,18 +117,23 @@ function PromotionNews() {
       if (response.data.status === true) {
         setVisible(false)
         fetchPromotionNewsData()
+        toast.success('Xóa tin khuyến mãi thành công!')
       }
 
-      if (response.data.status === false && response.data.mess == 'no permission') {
+      if (response.data.status === false && response.data.mess === 'no permission') {
         toast.warn('Bạn không có quyền thực hiện tác vụ này!')
       }
     } catch (error) {
-      console.error('Delete promotion news id is error', error)
+      console.error('Delete promotion news error', error)
       toast.error('Đã xảy ra lỗi khi xóa. Vui lòng thử lại!')
     }
   }
 
   const handleDeleteSelectedCheckbox = async () => {
+    if (selectedCheckbox.length === 0) {
+      toast.warn('Vui lòng chọn ít nhất 1 tin khuyến mãi để xóa!')
+      return
+    }
     try {
       const response = await axiosClient.post('admin/delete-all-promotion', {
         data: selectedCheckbox,
@@ -110,8 +145,20 @@ function PromotionNews() {
         setSelectedCheckbox([])
       }
     } catch (error) {
-      console.error('Deleted all id checkbox is error', error)
+      console.error('Delete selected items error', error)
     }
+  }
+
+  const formatDate = (val, fallback = 'Chưa có') => {
+    if (!val || val === '0' || Number(val) <= 0) return fallback
+    let m
+    if (!isNaN(val)) {
+      const num = Number(val)
+      m = num < 10000000000 ? moment.unix(num) : moment(num)
+    } else {
+      m = moment(val)
+    }
+    return m.isValid() && m.year() >= 1980 ? m.format('DD-MM-YYYY') : fallback
   }
 
   const items =
@@ -120,8 +167,7 @@ function PromotionNews() {
           id: (
             <CFormCheck
               key={item?.promotion_id}
-              aria-label="Default select example"
-              defaultChecked={item?.promotion_id}
+              aria-label="Select item"
               id={`flexCheckDefault_${item?.promotion_id}`}
               value={item?.promotion_id}
               checked={selectedCheckbox.includes(item?.promotion_id)}
@@ -137,45 +183,61 @@ function PromotionNews() {
             />
           ),
           title: (
-            <div
-              style={{
-                width: 300,
-              }}
-            >
-              {item?.promotion_desc?.title}
+            <div className="fw-semibold text-dark" style={{ maxWidth: '300px' }}>
+              {item?.promotion_desc?.title || 'Chưa có tiêu đề'}
             </div>
           ),
           image: (
             <CImage
               src={`${imageBaseUrl}${item.picture}`}
               alt={`Ảnh tin k/m ${item?.promotion_desc?.id}`}
-              width={100}
+              style={{ width: '80px', height: '50px', objectFit: 'cover' }}
+              className="rounded border shadow-xs"
             />
           ),
-          url: <div>{item?.promotion_desc?.friendly_url}</div>,
+          display: (
+            <CBadge
+              color={Number(item?.display) === 1 ? 'success' : 'secondary'}
+              className="px-2 py-1"
+            >
+              {Number(item?.display) === 1 ? 'Hiển thị' : 'Không hiển thị'}
+            </CBadge>
+          ),
+          startDate: formatDate(item?.date_start_promotion, 'Chưa có'),
+          expire: formatDate(item?.date_end_promotion, 'Chưa có'),
           info: (
             <div>
-              <span>{item?.views} lượt xem</span>
-              <div>{moment.unix(item?.date_post).format('DD-MM-YYYY')}</div>
+              <span className="fw-semibold text-primary d-block small">
+                {item?.views || 0} lượt xem
+              </span>
+              <div className="text-secondary small">
+                {formatDate(item?.date_post, 'Không có ngày tạo')}
+              </div>
             </div>
           ),
           actions: (
-            <div>
-              <button
+            <div className="d-flex gap-1">
+              <CButton
+                size="sm"
+                color="info"
+                className="text-white p-1"
                 onClick={() => handleEditClick(item.promotion_id)}
-                className="button-action mr-2 bg-info"
+                title="Chỉnh sửa"
               >
-                <CIcon icon={cilColorBorder} className="text-white" />
-              </button>
-              <button
+                <CIcon icon={cilColorBorder} />
+              </CButton>
+              <CButton
+                size="sm"
+                color="danger"
+                className="text-white p-1"
                 onClick={() => {
                   setVisible(true)
                   setDeletedId(item.promotion_id)
                 }}
-                className="button-action bg-danger"
+                title="Xóa"
               >
-                <CIcon icon={cilTrash} className="text-white" />
-              </button>
+                <CIcon icon={cilTrash} />
+              </CButton>
             </div>
           ),
           _cellProps: { id: { scope: 'row' } },
@@ -186,22 +248,20 @@ function PromotionNews() {
     {
       key: 'id',
       label: (
-        <>
-          <CFormCheck
-            aria-label="Select all"
-            checked={isAllCheckbox}
-            onChange={(e) => {
-              const isChecked = e.target.checked
-              setIsAllCheckbox(isChecked)
-              if (isChecked) {
-                const allIds = dataPromotionNews?.data.map((item) => item.promotion_id) || []
-                setSelectedCheckbox(allIds)
-              } else {
-                setSelectedCheckbox([])
-              }
-            }}
-          />
-        </>
+        <CFormCheck
+          aria-label="Select all"
+          checked={isAllCheckbox}
+          onChange={(e) => {
+            const isChecked = e.target.checked
+            setIsAllCheckbox(isChecked)
+            if (isChecked) {
+              const allIds = dataPromotionNews?.data.map((item) => item.promotion_id) || []
+              setSelectedCheckbox(allIds)
+            } else {
+              setSelectedCheckbox([])
+            }
+          }}
+        />
       ),
       _props: { scope: 'col' },
     },
@@ -216,8 +276,18 @@ function PromotionNews() {
       _props: { scope: 'col' },
     },
     {
-      key: 'url',
-      label: 'Chuỗi đường dẫn',
+      key: 'display',
+      label: 'Trạng thái',
+      _props: { scope: 'col' },
+    },
+    {
+      key: 'startDate',
+      label: 'Ngày bắt đầu',
+      _props: { scope: 'col' },
+    },
+    {
+      key: 'expire',
+      label: 'Ngày hết hạn',
       _props: { scope: 'col' },
     },
     {
@@ -235,7 +305,7 @@ function PromotionNews() {
   return (
     <div>
       {!isPermissionCheck ? (
-        <h5>
+        <h5 className="p-4 text-center">
           <div>Bạn không đủ quyền để thao tác trên danh mục quản trị này.</div>
           <div className="mt-4">
             Vui lòng quay lại trang chủ <Link to={'/dashboard'}>(Nhấn vào để quay lại)</Link>
@@ -245,43 +315,125 @@ function PromotionNews() {
         <>
           <DeletedModal visible={visible} setVisible={setVisible} onDelete={handleDelete} />
 
-          <CRow className="mb-3">
-            <CCol>
-              <h3>QUẢN LÝ TIN KHUYẾN MÃI</h3>
-            </CCol>
-            <CCol md={6}>
-              <div className="d-flex justify-content-end">
-                <CButton
-                  onClick={handleAddNewClick}
-                  color="primary"
-                  type="submit"
-                  size="sm"
-                  className="button-add"
-                >
-                  Thêm mới
-                </CButton>
-                <Link to={'/promotion'}>
-                  <CButton color="primary" type="submit" size="sm">
-                    Danh sách
-                  </CButton>
-                </Link>
-              </div>
-            </CCol>
-          </CRow>
+          {/* Header Title & Actions */}
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <h4 className="fw-bold text-dark mb-1">QUẢN LÝ TIN KHUYẾN MÃI</h4>
+              <p className="text-muted small mb-0">
+                Quản lý các bài viết tin tức khuyến mãi đăng tải trên website
+              </p>
+            </div>
+            <div>
+              <CButton
+                color="primary"
+                className="fw-semibold d-flex align-items-center gap-1 shadow-xs"
+                onClick={handleAddNewClick}
+              >
+                <CIcon icon={cilPlus} /> Thêm mới tin khuyến mãi
+              </CButton>
+            </div>
+          </div>
 
           <CRow>
-            <Search count={dataPromotionNews?.total} onSearchData={handleSearch} />
+            {/* Search Filter Table */}
+            <CCol md={12}>
+              <table className="filter-table">
+                <thead>
+                  <tr>
+                    <th colSpan="2">
+                      <div className="d-flex justify-content-between">
+                        <span>Bộ lọc tìm kiếm</span>
+                        <span className="toggle-pointer" onClick={handleToggleCollapse}>
+                          {isCollapse ? '▼' : '▲'}
+                        </span>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                {!isCollapse && (
+                  <tbody>
+                    <tr>
+                      <td>Tổng cộng</td>
+                      <td className="total-count">{dataPromotionNews?.total || 0}</td>
+                    </tr>
+                    <tr>
+                      <td>Trạng thái hiển thị</td>
+                      <td>
+                        <CFormSelect
+                          className="component-size w-25"
+                          aria-label="Chọn trạng thái hiển thị"
+                          value={selectedDisplay}
+                          onChange={(e) => {
+                            setSelectedDisplay(e.target.value)
+                            setPageNumber(1)
+                          }}
+                          options={[
+                            { label: 'Tất cả trạng thái', value: '' },
+                            { label: 'Hiển thị', value: '1' },
+                            { label: 'Không hiển thị (Ẩn)', value: '0' },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Tìm kiếm</td>
+                      <td>
+                        <input
+                          type="text"
+                          className="search-input"
+                          value={dataSearch}
+                          onChange={(e) => setDataSearch(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        />
+                        <button onClick={handleSearch} className="submit-btn ms-2">
+                          Submit
+                        </button>
+                        <button
+                          onClick={handleResetFilter}
+                          className="btn btn-sm btn-secondary ms-2"
+                        >
+                          Làm mới
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                )}
+              </table>
+            </CCol>
 
-            <CCol md={12} className="mt-3">
-              <CButton onClick={handleDeleteSelectedCheckbox} color="primary" size="sm">
-                Xóa vĩnh viễn
+            {/* Action Row */}
+            <CCol md={12} className="my-3">
+              <CButton
+                onClick={handleDeleteSelectedCheckbox}
+                color="danger"
+                size="sm"
+                className="fw-semibold"
+              >
+                Xóa vĩnh viễn ({selectedCheckbox.length})
               </CButton>
             </CCol>
 
-            <CTable className="mt-2" columns={columns} items={items} />
+            {/* Table */}
+            <CCol md={12}>
+              <CCard className="mb-4 shadow-xs border">
+                <CCardBody className="p-0">
+                  <CTable
+                    hover
+                    responsive
+                    className="mb-0 align-middle"
+                    columns={columns}
+                    items={items}
+                  />
+                </CCardBody>
+              </CCard>
+            </CCol>
+
+            {/* Pagination */}
             <div className="d-flex justify-content-end">
               <ReactPaginate
-                pageCount={Math.ceil(dataPromotionNews?.total / dataPromotionNews?.per_page)}
+                pageCount={Math.ceil(
+                  (dataPromotionNews?.total || 0) / (dataPromotionNews?.per_page || 10),
+                )}
                 pageRangeDisplayed={3}
                 marginPagesDisplayed={1}
                 pageClassName="page-item"
@@ -298,7 +450,7 @@ function PromotionNews() {
                 activeClassName={'active'}
                 previousLabel={'<<'}
                 nextLabel={'>>'}
-                forcePage={pageNumber - 1} // Đảm bảo pagination hiển thị đúng trang hiện tại
+                forcePage={pageNumber - 1}
               />
             </div>
           </CRow>

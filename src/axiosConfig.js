@@ -24,9 +24,29 @@ axiosClient.interceptors.request.use(
   },
 )
 
+axiosClient.interceptors.response.use(
+  (response) => {
+    // Nếu backend trả về HTML redirect do token hết hạn
+    if (typeof response.data === 'string' && response.data.includes('admin-login')) {
+      localStorage.removeItem('adminNKEU')
+      localStorage.removeItem('username')
+      window.location.href = '#/login'
+    }
+    return response
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('adminNKEU')
+      localStorage.removeItem('username')
+      window.location.href = '#/login'
+    }
+    return Promise.reject(error)
+  },
+)
+
 // Configuration for images
 // const mainBaseUrl = 'http://192.168.245.174:8020/uploads/'
-const imageBaseUrl = 'https://media.vitinhnguyenkim.com.vn/uploads/'
+const imageBaseUrl = 'https://media.vitinhnguyenkim.vn/uploads/'
 const mainUrl = 'https://eu.vitinhnguyenkim.vn/'
 
 export { axiosClient, imageBaseUrl, mainUrl }

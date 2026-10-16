@@ -1,8 +1,13 @@
 import {
+  CBadge,
   CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
   CCol,
   CContainer,
   CFormCheck,
+  CFormInput,
   CFormSelect,
   CImage,
   CRow,
@@ -23,7 +28,7 @@ import { getYear, getMonth } from 'date-fns'
 registerLocale('vi', vi)
 
 import CIcon from '@coreui/icons-react'
-import { cilTrash, cilColorBorder } from '@coreui/icons'
+import { cilTrash, cilColorBorder, cilCopy } from '@coreui/icons'
 import ReactPaginate from 'react-paginate'
 import moment from 'moment'
 
@@ -124,6 +129,18 @@ function ProductDetail() {
     validateDates(startDate, date)
   }
 
+  const [selectedStockStatus, setSelectedStockStatus] = useState('')
+
+  const handleResetFilter = () => {
+    setSelectedCategory('')
+    setSelectedBrand('')
+    setSelectedStatus('')
+    setSelectedStockStatus('')
+    setStartDate(null)
+    setEndDate(null)
+    setDataSearch('')
+  }
+
   // show deleted Modal
   const [visible, setVisible] = useState(false)
   const [deletedId, setDeletedId] = useState(null)
@@ -173,7 +190,7 @@ function ProductDetail() {
     try {
       setIsLoading(true)
       const response = await axiosClient.get(
-        `admin/product?page=${pageNumber}&data=${dataSearch}&brand=${selectedBrand}&category=${selectedCategory}&status=${selectedStatus}`,
+        `admin/product?page=${pageNumber}&data=${dataSearch}&brand=${selectedBrand}&category=${selectedCategory}&status=${selectedStatus}&stock_status=${selectedStockStatus}`,
       )
       if (response.data.status === true) {
         setDataProductList(response.data.product)
@@ -191,7 +208,14 @@ function ProductDetail() {
 
   useEffect(() => {
     fetchProductData()
-  }, [pageNumber, debouncedSearch, selectedBrand, selectedCategory, selectedStatus])
+  }, [
+    pageNumber,
+    debouncedSearch,
+    selectedBrand,
+    selectedCategory,
+    selectedStatus,
+    selectedStockStatus,
+  ])
 
   const handleAddNewClick = () => {
     navigate('/product/add')
@@ -355,7 +379,25 @@ function ProductDetail() {
               >
                 {item?.TenTrenWeb2 ? item?.TenTrenWeb2 : ''}
               </p>
-              <p className="orange-txt">{`#${item?.MaHH ? item?.MaHH : item?.macn}`}</p>
+              <div className="d-flex align-items-center gap-1.5 mt-1">
+                <span className="orange-txt m-0">{`#${item?.MaHH ? item?.MaHH : item?.macn}`}</span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-light border p-1 d-inline-flex align-items-center justify-content-center text-secondary shadow-2xs ms-1"
+                  style={{ lineHeight: 1 }}
+                  title="Sao chép mã sản phẩm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const codeToCopy = item?.MaHH ? item?.MaHH : item?.macn
+                    if (codeToCopy) {
+                      navigator.clipboard.writeText(codeToCopy)
+                      toast.success(`Đã sao chép mã: ${codeToCopy}`)
+                    }
+                  }}
+                >
+                  <CIcon icon={cilCopy} size="sm" />
+                </button>
+              </div>
             </div>
           ),
           image: (
@@ -372,28 +414,28 @@ function ProductDetail() {
           ),
           marketPrice: `${Number(item.price_old).toLocaleString('vi-VN')}đ`,
           status: (
-            <>
-              <span>
-                {item.stock > 0 ? (item.stock === 1 ? 'Còn hàng' : 'Ngừng kinh doanh') : 'Hết hàng'}
-              </span>
-              <p
-                style={{
-                  color: item.Hienthi === 'Y' ? '#28a745' : '#dc3545',
-                  fontWeight: 'bold',
-                }}
+            <div
+              className="d-flex flex-column align-items-center justify-content-center gap-1 text-center"
+              style={{ fontSize: '13px', lineHeight: 1.3 }}
+            >
+              <span
+                className={`fw-bold ${
+                  item.stock === 1
+                    ? 'text-success'
+                    : item.stock === 2
+                      ? 'text-secondary'
+                      : 'text-danger'
+                }`}
               >
-                {item.Hienthi === 'Y' ? 'Hiển thị' : 'Ẩn'}
-              </p>
-            </>
+                {item.stock > 0 ? (item.stock === 1 ? 'Còn hàng' : 'Ngừng KD') : 'Hết hàng'}
+              </span>
+              {item.Hienthi === 'Y' || item.status === 1 || item.status === '1' ? (
+                <span className="fw-bold text-success">Hiển thị</span>
+              ) : (
+                <span className="fw-bold text-danger">Đang ẩn</span>
+              )}
+            </div>
           ),
-
-          // info: (
-          //   <>
-          //     <p>{item.views} lượt xem</p>
-          //     <p>{moment.unix(item.date_post).format('DD-MM-YYYY, hh:mm:ss A')}</p>
-          //   </>
-          // ),
-
           create_at: (
             <>
               <p>{moment(item?.created_at).format('DD-MM-YYYY, HH:mm:ss A')}</p>
@@ -532,11 +574,6 @@ function ProductDetail() {
                 >
                   Thêm mới
                 </CButton>
-                <Link to={`/product`}>
-                  <CButton color="primary" type="submit" size="sm">
-                    Danh sách
-                  </CButton>
-                </Link>
               </div>
             </CCol>
           </CRow>
@@ -580,7 +617,7 @@ function ProductDetail() {
                               { label: 'Chọn danh mục', value: '' },
                               ...(categories && categories.length > 0
                                 ? categories.map((cate) => ({
-                                    label: cate.category_desc.cat_name,
+                                    label: cate.category_desc?.cat_name || cate.cat_name,
                                     value: cate.cat_id,
                                   }))
                                 : []),
@@ -608,12 +645,19 @@ function ProductDetail() {
                             onChange={(e) => setSelectedStatus(e.target.value)}
                             options={[
                               { label: 'Chọn trạng thái', value: '' },
-                              ...(status && status.length > 0
-                                ? status.map((status) => ({
-                                    label: status.name,
-                                    value: status.status_id,
-                                  }))
-                                : []),
+                              { label: 'Hiển thị', value: '1' },
+                              { label: 'Đang ẩn', value: '0' },
+                            ]}
+                          />
+                          <CFormSelect
+                            className="component-size w-25"
+                            aria-label="Chọn tình trạng kho hàng"
+                            value={selectedStockStatus}
+                            onChange={(e) => setSelectedStockStatus(e.target.value)}
+                            options={[
+                              { label: 'Chọn kho hàng', value: '' },
+                              { label: 'Còn hàng', value: '1' },
+                              { label: 'Hết hàng', value: '0' },
                             ]}
                           />
                         </div>
@@ -630,66 +674,6 @@ function ProductDetail() {
                             selected={startDate}
                             onChange={handleStartDateChange}
                             locale="vi"
-                            renderCustomHeader={({
-                              date,
-                              changeYear,
-                              changeMonth,
-                              decreaseMonth,
-                              increaseMonth,
-                              prevMonthButtonDisabled,
-                              nextMonthButtonDisabled,
-                            }) => (
-                              <div
-                                style={{
-                                  margin: 10,
-                                  display: 'flex',
-                                  justifyContent: 'center',
-                                  gap: 8,
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <button
-                                  onClick={decreaseMonth}
-                                  disabled={prevMonthButtonDisabled}
-                                  type="button"
-                                  className="react-datepicker__navigation react-datepicker__navigation--previous"
-                                >
-                                  {'<'}
-                                </button>
-                                <select
-                                  value={getYear(date)}
-                                  onChange={({ target: { value } }) =>
-                                    changeYear(parseInt(value, 10))
-                                  }
-                                >
-                                  {years.map((option) => (
-                                    <option key={option} value={option}>
-                                      {option}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={months[getMonth(date)]}
-                                  onChange={({ target: { value } }) =>
-                                    changeMonth(months.indexOf(value))
-                                  }
-                                >
-                                  {months.map((option) => (
-                                    <option key={option} value={option}>
-                                      {option}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={increaseMonth}
-                                  disabled={nextMonthButtonDisabled}
-                                  type="button"
-                                  className="react-datepicker__navigation react-datepicker__navigation--next"
-                                >
-                                  {'>'}
-                                </button>
-                              </div>
-                            )}
                           />
                           <p className="datepicker-label">{'đến ngày'}</p>
                           <DatePicker
@@ -699,66 +683,6 @@ function ProductDetail() {
                             selected={endDate}
                             onChange={handleEndDateChange}
                             locale="vi"
-                            renderCustomHeader={({
-                              date,
-                              changeYear,
-                              changeMonth,
-                              decreaseMonth,
-                              increaseMonth,
-                              prevMonthButtonDisabled,
-                              nextMonthButtonDisabled,
-                            }) => (
-                              <div
-                                style={{
-                                  margin: 10,
-                                  display: 'flex',
-                                  justifyContent: 'center',
-                                  gap: 8,
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <button
-                                  onClick={decreaseMonth}
-                                  disabled={prevMonthButtonDisabled}
-                                  type="button"
-                                  className="react-datepicker__navigation react-datepicker__navigation--previous"
-                                >
-                                  {'<'}
-                                </button>
-                                <select
-                                  value={getYear(date)}
-                                  onChange={({ target: { value } }) =>
-                                    changeYear(parseInt(value, 10))
-                                  }
-                                >
-                                  {years.map((option) => (
-                                    <option key={option} value={option}>
-                                      {option}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={months[getMonth(date)]}
-                                  onChange={({ target: { value } }) =>
-                                    changeMonth(months.indexOf(value))
-                                  }
-                                >
-                                  {months.map((option) => (
-                                    <option key={option} value={option}>
-                                      {option}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={increaseMonth}
-                                  disabled={nextMonthButtonDisabled}
-                                  type="button"
-                                  className="react-datepicker__navigation react-datepicker__navigation--next"
-                                >
-                                  {'>'}
-                                </button>
-                              </div>
-                            )}
                           />
                         </div>
                         {errors.startDate && <p className="text-danger">{errors.startDate}</p>}
@@ -771,62 +695,73 @@ function ProductDetail() {
                         <strong>
                           <em>Tìm kiếm theo Tiêu đề, Mã kho, Mã số, Giá bán</em>
                         </strong>
-                        <input
-                          type="text"
-                          className="search-input"
-                          value={dataSearch}
-                          onChange={(e) => setDataSearch(e.target.value)}
-                        />
-                        <button onClick={() => handleSearch(dataSearch)} className="submit-btn">
-                          Submit
-                        </button>
+                        <div className="d-flex align-items-center gap-2 mt-1">
+                          <input
+                            type="text"
+                            className="search-input"
+                            value={dataSearch}
+                            onChange={(e) => setDataSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch(dataSearch)}
+                          />
+                          <button onClick={() => handleSearch(dataSearch)} className="submit-btn">
+                            Submit
+                          </button>
+                          <button
+                            onClick={handleResetFilter}
+                            className="btn btn-sm btn-secondary ms-1"
+                          >
+                            Làm mới
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
                 )}
               </table>
             </CCol>
+          </CRow>
 
-            <div className="d-flex gap-3 mt-3">
-              {' '}
-              <div>
-                <CButton onClick={handleDeleteSelectedCheckbox} color="primary" size="sm">
-                  Xóa vĩnh viễn
-                </CButton>
-              </div>
-              <div>
-                <CButton
-                  onClick={handleExportExcelByCategoryAndBrand}
-                  color="primary"
-                  size="sm"
-                  disabled={isLoadingButton.excelCategoryButton}
-                >
-                  {isLoadingButton.excelCategoryButton ? (
-                    <>
-                      Đang tải xuống <CSpinner size="sm" />
-                    </>
-                  ) : (
-                    'Xuất excel sản phẩm theo danh mục, thương hiệu'
-                  )}
-                </CButton>
-              </div>
-              <div>
-                <CButton
-                  onClick={handleExportExcelAllProductByCategoryAndBrand}
-                  color="primary"
-                  size="sm"
-                  disabled={isLoadingButton.excelAllButton}
-                >
-                  {isLoadingButton.excelAllButton ? (
-                    <>
-                      Đang tải xuống <CSpinner size="sm" />
-                    </>
-                  ) : (
-                    'Xuất excel toàn bộ thông tin sản phẩm'
-                  )}
-                </CButton>
-              </div>
-            </div>
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <CButton
+              onClick={handleDeleteSelectedCheckbox}
+              color="danger"
+              size="sm"
+              className="fw-semibold"
+            >
+              Xóa vĩnh viễn
+            </CButton>
+            <CButton
+              onClick={handleExportExcelByCategoryAndBrand}
+              color="primary"
+              size="sm"
+              className="fw-semibold"
+              disabled={isLoadingButton.excelCategoryButton}
+            >
+              {isLoadingButton.excelCategoryButton ? (
+                <>
+                  Đang tải xuống <CSpinner size="sm" />
+                </>
+              ) : (
+                'Xuất excel sản phẩm theo danh mục, thương hiệu'
+              )}
+            </CButton>
+            <CButton
+              onClick={handleExportExcelAllProductByCategoryAndBrand}
+              color="primary"
+              size="sm"
+              className="fw-semibold"
+              disabled={isLoadingButton.excelAllButton}
+            >
+              {isLoadingButton.excelAllButton ? (
+                <>
+                  Đang tải xuống <CSpinner size="sm" />
+                </>
+              ) : (
+                'Xuất excel toàn bộ thông tin sản phẩm'
+              )}
+            </CButton>
+          </div>
+          <CRow>
             <CCol>
               {isLoading ? (
                 <Loading />

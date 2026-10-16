@@ -86,7 +86,7 @@ function AddProductDetail() {
     brand: '',
     stock: 0,
     visible: 0,
-    star: 4.5,
+    star: 5,
   }
 
   const validationSchema = Yup.object({
@@ -370,21 +370,23 @@ function AddProductDetail() {
   console.log('tech ', tech)
 
   return (
-    <div>
-      <CRow className="mb-3">
-        <CCol>
-          <h3>THÊM MỚI SẢN PHẨM</h3>
-        </CCol>
-        <CCol md={{ span: 4, offset: 4 }}>
-          <div className="d-flex justify-content-end">
-            <Link to={`/product`}>
-              <CButton color="primary" type="submit" size="sm">
-                Danh sách
-              </CButton>
-            </Link>
-          </div>
-        </CCol>
-      </CRow>
+    <div className="pb-4">
+      {/* PAGE HEADER */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+          <h3 className="fw-bold text-uppercase text-dark m-0">THÊM MỚI SẢN PHẨM</h3>
+          <p className="text-muted text-xs m-0 mt-1">
+            Tạo sản phẩm mới với thông tin chi tiết, giá bán, danh mục, hình ảnh và cấu hình SEO
+          </p>
+        </div>
+        <div className="d-flex flex-wrap gap-2">
+          <Link to="/product">
+            <CButton color="primary" size="sm" className="fw-semibold shadow-xs">
+              Quản lý sản phẩm
+            </CButton>
+          </Link>
+        </div>
+      </div>
 
       <CRow>
         <Formik
@@ -886,7 +888,7 @@ function AddProductDetail() {
                       min="1"
                       max="5"
                       step="0.1"
-                      placeholder="Ví dụ: 4.5"
+                      placeholder="Ví dụ: 5"
                     />
                     <ErrorMessage name="star" component="div" className="text-danger" />
                   </CCol>
